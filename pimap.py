@@ -5,21 +5,41 @@ import email
 class Gmail():
 
 	def __init__(self, email, password, server):
+		"""
+		Initializes the mail connection object.
+		:param email: your email address
+		:param password: your password
+		:param server: server address
+		:return:
+		"""
 		self.email = email
 		self.password = password
 		self.server = server
 		self.uid = []
 		self.connection = imaplib.IMAP4_SSL(self.server)
+		self.unique_head = []
 
 	def login(self):
+		"""
+		Logs in to the email server and establishes connection.
+		:return:
+		"""
 		result = self.connection.login(self.email, self.password)
 		if result[0] == "OK":
 			print("[ i ] LOGIN SUCCESSFUL.")
 
 	def goto_inbox(self):
+		"""
+		Sets the context to inbox folder.
+		:return:
+		"""
 		self.connection.select("inbox")
 
 	def get_uid(self):
+		"""
+		Searches for all UIDs in the designated folder.
+		:return:
+		"""
 		result, data = self.connection.uid('search', None, "ALL")
 		if result == "OK":
 			self.uid = (data[0]).split()
@@ -28,6 +48,11 @@ class Gmail():
 			print("[ e ] Searching for UIDs failed.")
 
 	def fetch_by_uid(self, uid):
+		"""
+		Gets an email by UID.
+		:param uid: designated UID
+		:return:
+		"""
 		raw_email = ''
 		print("[ i ] Fetching message", uid.decode('utf-8'))
 		result, data = self.connection.uid('fetch', uid, '(RFC822)')
@@ -37,54 +62,83 @@ class Gmail():
 
 
 	def close(self):
+		"""
+		Closes connection.
+		:return:
+		"""
 		self.connection.close()
 
 	def parse_email(self, raw_email):
+		"""
+		Parses email to get details.
+		:param raw_email: raw email content.
+		:return:
+		"""
+
+		# SEARCHING FOR CORRECT CHARSET
 		email_message_for_headers = email.message_from_string(str(raw_email.decode('latin-1')))
 		email_head = email_message_for_headers.items()
 		email_char_arr = ['iso-8859-2', 'latin-1', 'utf-8', 'iso-8859-1']
 		email_char = ''
-		email_message = 'Unable to decode'
-		try:
-			for h in email_head:
-				print(h)
-				if h[0].upper() == 'Content-type'.upper():
-					print("\tCharset:", (h[1].split("charset=")[1]))
-					email_char = h[1].split("charset=")[1]
-		except:
-			print('[ERR] Encoding missing')
 
+
+		email_message = 'Unable to decode'
+
+		# TRYING TO GET CHARSET FROM EMAIL
+		try:
+			for header in email_head:
+				if header[0].upper() == 'CONTENT-TYPE':
+					email_char = header[1].split("charset=")[1]
+		except:
+			print('[ e ] Encoding missing')
+
+		# IF ENCODING IS MISSING
 		if email_char == '':
+			# TRY KNOWN ENCODINGS
 			for char in email_char_arr:
 				try:
 					email_message = email.message_from_string(str(raw_email.decode(char)))
+					# BREAK IN CASE OF SUCCESS
 					break
 				except:
 					pass
+
+		# IF ENCODING IS KNOWN
 		else:
 			try:
 				email_message = email.message_from_string(str(raw_email.decode(email_char)))
 			except:
+				print('[ e ] Failed to decode message with', email_char)
 				pass
 
+
+		# GETTING BASIC INFO FROM HEADERS
 		email_to = email_message_for_headers['To']
 		email_from = email.utils.parseaddr(email_message_for_headers['From'])
-
 		email_type = email_message_for_headers.get_content_maintype()
 
+		# for h in email_head:
+		# 	print(h)
+		d = email_message_for_headers['Date']
+
+		email_delivered_to = email_message_for_headers['Delivered-To']
+		email_received = email_message_for_headers['Received']
+		email_reply_to = email_message_for_headers['Reply-To']
+		email_message_id = email_message_for_headers['Message-ID']
+
+		# GET TEXT FROM MESSAGE
+		email_text = self.get_text(email_message)
 
 
 		print()
 		print("To:", email_to)
 		print("From:", email_from)
-		print("Head:")
-
-
-		email_text = self.get_text(email_message)
+		print("Date:", d)
+		print("Received:", email_received)
 
 		print("Maintype:", email_type)
-		print("Text:", email_text)
-
+		#print("Text:", email_text)
+		print("Message:", email_message)
 
 	def get_text(self, email_message_instance):
 		maintype = email_message_instance.get_content_maintype()
@@ -95,22 +149,121 @@ class Gmail():
 		elif maintype == 'text':
 			return email_message_instance.get_payload()
 
+	def get_headers(self, raw_email):
+		"""
+		Parses email to get headers.
+		:param raw_email: raw email content.
+		:return:
+		"""
+		email_message = email.message_from_string(str(raw_email.decode('latin-1')))
+		email_head = email_message.items()
+
+		# for h in email_head:
+		# 	print("\t",h[0], h[1])
+
+		email_dictionary = {}
+
+
+		for h in email_head:
+			delivered_to = []
+			received = []
+			xreceived = []
+			return_path = []
+			received_spf = []
+			mime = []
+			date = []
+			message_id = []
+			subject = []
+			email_from = []
+			email_to = []
+			content_type = []
+			content_transfer_encoding = []
+			xforwarded_to = []
+			xforwarded_for = []
+			xmailer = []
+
+			if h[0] not in self.unique_head:
+				self.unique_head.append(h[0])
+
+# Delivered-To
+# Received
+# X-Received
+# Return-Path
+# Received
+# Received-SPF
+# Authentication-Results
+# Received
+# Return-Path
+# Received-SPF
+# X-Received
+# DKIM-Signature
+# MIME-Version
+# X-Received
+# Received
+# Received
+# Date
+# Message-ID
+# Subject
+# From
+# To
+# Content-Type
+# Content-Transfer-Encoding
+# X-Forwarded-To
+# X-Forwarded-For
+# X-Mailer
+
+
+		#
+		# email_delivered_to = email_message['Delivered-To']
+		# email_received = email_message['Received']
+		# email_x_received = email_message['X-Received']
+		# email_return_path = email.utils.parseaddr(email_message['Return-Path'])[0]
+		#
+		# email_to = email_message['To']
+		# email_from = email.utils.parseaddr(email_message['From'])
+		# email_type = email_message.get_content_maintype()
+		# email_date = email_message['Date']
+		#
+		# print(email_delivered_to)
+		# print(email_received)
+		# print(email_x_received)
+		# print(email_return_path)
+		#
+		# print(email_message['Received'])
+		#
+		# print(email_head[0])
+
+
+	def print_head(self):
+		for hh in self.unique_head:
+			print(hh)
+
+
 def main():
 
-	g = Gmail('s@gmail.com', '', 'imap.gmail.com')
+	g = Gmail('@gmail.com', '', 'imap.gmail.com')
 	g.login()
 	g.goto_inbox()
 	g.get_uid()
-	#raw_email = g.fetch_by_uid(b'10544')
-	#g.parse_email(raw_email)
+
 	for uid in g.uid:
 		raw_email = g.fetch_by_uid(uid)
-		g.parse_email(raw_email)
+		#g.parse_email(raw_email)
+		g.get_headers(raw_email)
 
+	g.print_head()
 	g.close()
+
+
+
 
 if __name__ == "__main__":
 	main()
+
+
+
+
+
 
 def test():
 	mail = imaplib.IMAP4_SSL('imap.gmail.com')
