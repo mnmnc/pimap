@@ -14,7 +14,7 @@ class Gmail():
 	def login(self):
 		result = self.connection.login(self.email, self.password)
 		if result[0] == "OK":
-			print("[NFO] AUTH SUCCESSFUL.")
+			print("[ i ] LOGIN SUCCESSFUL.")
 
 	def goto_inbox(self):
 		self.connection.select("inbox")
@@ -23,13 +23,13 @@ class Gmail():
 		result, data = self.connection.uid('search', None, "ALL")
 		if result == "OK":
 			self.uid = (data[0]).split()
-			print("[NFO] UIDs fetched.")
+			print("[ i ] UIDs fetched.")
 		else:
-			print("[ERR] Searching for UIDs failed.")
+			print("[ e ] Searching for UIDs failed.")
 
 	def fetch_by_uid(self, uid):
 		raw_email = ''
-		print("[NFO] Fetching message", uid.decode('utf-8'))
+		print("[ i ] Fetching message", uid.decode('utf-8'))
 		result, data = self.connection.uid('fetch', uid, '(RFC822)')
 		if result == "OK":
 			raw_email = data[0][1]
@@ -40,7 +40,7 @@ class Gmail():
 		self.connection.close()
 
 	def parse_email(self, raw_email):
-		email_message_for_headers = email.message_from_string(str(raw_email.decode('utf-8')))
+		email_message_for_headers = email.message_from_string(str(raw_email.decode('latin-1')))
 		email_head = email_message_for_headers.items()
 		email_char_arr = ['iso-8859-2', 'latin-1', 'utf-8', 'iso-8859-1']
 		email_char = ''
@@ -97,7 +97,7 @@ class Gmail():
 
 def main():
 
-	g = Gmail('a@gmail.com', '', 'imap.gmail.com')
+	g = Gmail('s@gmail.com', '', 'imap.gmail.com')
 	g.login()
 	g.goto_inbox()
 	g.get_uid()
