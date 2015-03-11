@@ -54,7 +54,7 @@ class Gmail():
 		:return:
 		"""
 		raw_email = ''
-		print("[ i ] Fetching message", uid.decode('utf-8'))
+		#print("[ i ] Fetching message", uid.decode('utf-8'))
 		result, data = self.connection.uid('fetch', uid, '(RFC822)')
 		if result == "OK":
 			raw_email = data[0][1]
@@ -163,27 +163,79 @@ class Gmail():
 
 		email_dictionary = {}
 
+		delivered_to = []
+		received = []
+		xreceived = []
+		return_path = []
+		received_spf = []
+		mime = []
+		date = []
+		message_id = []
+		subject = []
+		email_from = []
+		email_to = []
+		content_type = []
+		xforwarded_to = []
+		xforwarded_for = []
+		xmailer = []
+		xvirus_scanned = []
 
-		for h in email_head:
-			delivered_to = []
-			received = []
-			xreceived = []
-			return_path = []
-			received_spf = []
-			mime = []
-			date = []
-			message_id = []
-			subject = []
-			email_from = []
-			email_to = []
-			content_type = []
-			content_transfer_encoding = []
-			xforwarded_to = []
-			xforwarded_for = []
-			xmailer = []
 
-			if h[0] not in self.unique_head:
-				self.unique_head.append(h[0])
+		for header in email_head:
+
+			if header[0].upper() == "Delivered-To".upper():
+				delivered_to.append(header[1])
+			elif header[0].upper() == "Received".upper():
+				received.append(header[1])
+			elif header[0].upper() == "X-Received".upper():
+				xreceived.append(header[1])
+			elif header[0].upper() == "Return-Path".upper():
+				return_path.append(header[1])
+			elif header[0].upper() == "Received-SPF".upper():
+				received_spf.append(header[1])
+			elif header[0].upper() == "MIME-Version".upper():
+				mime.append(header[1])
+			elif header[0].upper() == "Date".upper():
+				date.append(header[1])
+			elif header[0].upper() == "Message-ID".upper():
+				message_id.append(header[1])
+			elif header[0].upper() == "Subject".upper():
+				subject.append(header[1])
+			elif header[0].upper() == "From".upper():
+				email_from.append(email.utils.parseaddr(header[1]))
+			elif header[0].upper() == "To".upper():
+				email_to.append(email.utils.parseaddr(header[1]))
+			elif header[0].upper() == "Content-Type".upper():
+				content_type.append(header[1])
+			elif header[0].upper() == "X-Forwarded-To".upper():
+				xforwarded_to.append(header[1])
+			elif header[0].upper() == "X-Forwarded-For".upper():
+				xforwarded_for.append(header[1])
+			elif header[0].upper() == "X-Mailer".upper():
+				xmailer.append(header[1])
+			elif header[0].upper() == "X-Virus-Scanned".upper():
+				xvirus_scanned.append(header[1])
+
+		email_content = {
+			'delivered_to': delivered_to,
+			'received': received,
+			'xreceived': xreceived ,
+			'return_path': return_path,
+			'received_spf': received_spf,
+			'mime': mime,
+			'date': date,
+			'message_id': message_id,
+			'subject': subject,
+			'from': email_from,
+			'to': email_to,
+			'content_type': content_type,
+			'xforwarded_to': xforwarded_to,
+			'xforwarded_for': xforwarded_for,
+			'xmailer': xmailer,
+			'xvirus_scanned': xvirus_scanned
+		}
+
+		return email_content
 
 # Delivered-To
 # Received
@@ -211,6 +263,7 @@ class Gmail():
 # X-Forwarded-To
 # X-Forwarded-For
 # X-Mailer
+# X-Virus-Scanned
 
 
 		#
@@ -238,6 +291,13 @@ class Gmail():
 		for hh in self.unique_head:
 			print(hh)
 
+def adjust_string(string, length):
+	if length - len(string) > 0:
+		for i in range(length - len(string)):
+			string += ' '
+		return string[:length]
+	else:
+		return string[:length]
 
 def main():
 
@@ -249,7 +309,42 @@ def main():
 	for uid in g.uid:
 		raw_email = g.fetch_by_uid(uid)
 		#g.parse_email(raw_email)
-		g.get_headers(raw_email)
+		email_headers = g.get_headers(raw_email)
+		print("\n", adjust_string(str(uid.decode('utf-8')), 8), end="\t")
+
+		# TO
+		if len(email_headers['to']) > 0 and email_headers['to'][0][1]:
+			print(adjust_string(email_headers['to'][0][1], 30), end=' ')
+		else:
+			print(adjust_string('-',30), end=' ')
+
+		# FROM
+		if len(email_headers['from']) > 0 and email_headers['from'][0][1]:
+			print(adjust_string(email_headers['from'][0][1], 30), end=' ')
+		else:
+			print(adjust_string('-',30), end=' ')
+
+		# SUBJECT
+		if len(email_headers['subject']) > 0:
+			print(adjust_string(email_headers['subject'][0], 30), end=' ')
+		else:
+			print(adjust_string('-',30), end=' ')
+
+		# XMAILER
+		if len(email_headers['xmailer']) > 0:
+			print(adjust_string(email_headers['xmailer'][0], 30), end=' ')
+		else:
+			print(adjust_string('-',30), end=' ')
+
+		# for header in email_headers.keys():
+		#
+		# 	if len(email_headers[header]) > 1:
+		# 		print(header)
+		# 		for ele in email_headers[header]:
+		# 			print("\t", ele)
+		# 	else:
+		# 		print(header, ': ', email_headers[header])
+
 
 	g.print_head()
 	g.close()
