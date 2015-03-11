@@ -4,7 +4,7 @@ imap email automation with python
 
 This script will (eventually) connect to designated IMAP servers (GMAIL.com, GMX.com, OUTLOOK.com) with configured accounts, *check for unread emails*, get some details about them (including headers) and show all of this in a nice form (possibly ncurses - TBD).
 
-Example output so far (316b60142a46f27b92aa074ec04ac9f2af68a175):
+Example output so far ([316b60142a](https://github.com/mnmnc/pimap/commit/316b60142a46f27b92aa074ec04ac9f2af68a175)):
 
 ```ruby
 D:\Prv\Git\pimap>python pimap.py
