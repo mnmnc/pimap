@@ -362,6 +362,11 @@ if __name__ == "__main__":
 
 
 def test():
+	"""
+
+	:return:
+	:rtype:
+	"""
 	mail = imaplib.IMAP4_SSL('imap.gmail.com')
 	mail.login('a@gmail.com', '')
 	mail.list()
