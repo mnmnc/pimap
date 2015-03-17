@@ -5,6 +5,10 @@ import getpass
 import re
 import sys
 import quopri
+import base64
+import time
+import datetime
+
 
 
 class Mail():
@@ -22,8 +26,12 @@ class Mail():
 		self.connected_domain = ''
 		self.connected_user = ''
 
+		# variables
+		self.show_messages = False
+
 		# debug
 		self.debug = debug
+		self.log = ''
 
 	def print_notification(self, type, length, title, details):
 		notification_types = ['ERROR', 'INFO', 'WARNING', 'SUCCESS', 'CHOICE', 'SUB', 'INPUT']
@@ -80,7 +88,8 @@ class Mail():
 			if self.debug:
 				self.print_notification('success', 35,'Server configuration added:', domain)
 		except:
-			self.print_notification('error', 35, 'Failed to add configuration for', domain)
+			if self.debug:
+				self.print_notification('error', 35, 'Failed to add configuration for', domain)
 
 	def show_server_config(self, domain="ALL"):
 		"""
@@ -177,10 +186,13 @@ class Mail():
 				self.con = imaplib.IMAP4_SSL(self.server_configurations[domain][0], self.server_configurations[domain][1])
 				self.connected_domain = domain
 			except:
-				self.print_notification('error', 35, 'IMAP4_SSL connection failure:', domain)
+				if self.debug:
+					self.print_notification('error', 35, 'IMAP4_SSL connection failure:', domain)
 
 		else:
-			self.print_notification('error', 35, 'No configuration for domain:', domain)
+			self.log += 'Error. No configuration for domain:' + domain + '\n'
+			if self.debug:
+				self.print_notification('error', 35, 'No configuration for domain:', domain)
 
 	def login(self, domain, user):
 		"""
@@ -210,7 +222,8 @@ class Mail():
 
 		if result is not None and len(result) > 0:
 			if result[0] == "OK":
-				self.print_notification('success', 35, 'Logon successful:', user + '@' + domain)
+				if self.debug:
+					self.print_notification('success', 35, 'Logon successful:', user + '@' + domain)
 				self.connected_user = user
 				return 0
 		return -1
@@ -220,7 +233,9 @@ class Mail():
 		Logs off from current mailbox connection.
 		:return:
 		"""
-		self.print_notification('info', 35, 'Logoff:', self.con.logout()[0])
+		logoff_result = self.con.logout()[0]
+		if self.debug:
+			self.print_notification('info', 35, 'Logoff:', logoff_result )
 
 	def close(self):
 		"""
@@ -306,8 +321,8 @@ class Mail():
 	def parse_header(self, header):
 		print('quopri:',quopri.decodestring(header))
 		(text, encoding) = email.header.decode_header(header)[0]
-		print(text)
-		print(encoding)
+		return text
+
 
 	def check_message_inner_details(self, raw_email):
 
@@ -398,7 +413,6 @@ class Mail():
 		"""
 		self.con.select(self.email_credentials[self.connected_domain][self.connected_user][1], readonly=False)
 		result, data = self.con.uid('search', None, scope)
-		print(data)
 		if result == 'OK':
 			if len(data) > 0:
 				return data[0].split()
@@ -428,11 +442,28 @@ class Mail():
 		if result == 'OK':
 
 			email_message = email.message_from_string(data[0][1].decode('latin-1'))
-			print(email_message)
+			return (uid, email_message)
+		return (None, None)
+
+	def print_default_headers(self, email_message, uid, inline=False):
+		if inline:
+			print('\t' + adjust_string(str(uid.decode('utf-8')), 10), end='\t')
+			print(adjust_string(email.utils.parseaddr(email_message["To"])[1], 30), end='\t')
+			print(adjust_string(email.utils.parseaddr(email_message["From"])[1],30), end='\t')
+			print(adjust_string(email_message["Subject"], 30), end='\t')
+			print()
+		else:
+			print()
+			print('\tID:  ', adjust_string(str(uid.decode('utf-8')), 10))
+			print('\tTo:  ', email.utils.parseaddr(email_message["To"])[1])
+			print('\tFrom:', email.utils.parseaddr(email_message["From"])[1])
+			print('\tSubject: ', email_message["Subject"])
+
+
 
 def main():
 
-	mail = Mail(True)
+	mail = Mail(False)
 
 	# Adds configuration
 	mail.add_server_config('gmail.com', 'imap.gmail.com')
@@ -440,61 +471,46 @@ def main():
 
 	# Adding credentials
 	mail.add_account_credentials('gmail.com', '')
-	#mail.add_account_credentials('gmail.com', '')
-	# mail.add_account_credentials('gmail.com', '')
-	# mail.add_account_credentials('gmail.com', '')
-	# mail.add_account_credentials('outlook.com', '')
-	#mail.add_account_credentials('outlook.com', '')
-	# mail.add_account_credentials('outlook.com', '')
+	mail.add_account_credentials('gmail.com', '')
+	mail.add_account_credentials('gmail.com', '')
+	mail.add_account_credentials('gmail.com', '')
+	mail.add_account_credentials('outlook.com', '')
+	mail.add_account_credentials('outlook.com', '')
+	mail.add_account_credentials('outlook.com', '')
 
 	# Showing configurations
-	# if mail.debug:
-	# 	mail.show_server_config()
-	# 	mail.show_server_config('test.com')
-	# 	mail.show_server_config('outlook.com')
-	# 	mail.show_account_credentials()
-	# 	mail.show_account_credentials('outlook.com')
-	# 	mail.show_account_credentials('sdsad.com')
+	if mail.debug:
+		mail.show_server_config()
+		mail.show_server_config('test.com')
+		mail.show_server_config('outlook.com')
+		mail.show_account_credentials()
+		mail.show_account_credentials('outlook.com')
+		mail.show_account_credentials('sdsad.com')
 
-	# Login to mailbox
+	# Login to mailboxes
+	while True:
 
-	#mail.check_message_unseen()
+		print('----------- ' + str(datetime.datetime.now()) + ' -----------')
 
-	mail.login('gmail.com', '')
-	mail.check_mailbox_stats()
+		for domain in mail.email_credentials:
+			if domain in mail.server_configurations:
+				for user in mail.email_credentials[domain]:
 
-	unseen = mail.get_uids('ALL')
+					if mail.debug:
+						mail.print_notification('info', 35, 'Current user:', user + '@' + domain)
+					check = mail.login(domain, user)
+					if check == 0:
+						mail.check_mailbox_stats()
 
-	if len(unseen) > 0:
+						unseen = mail.get_uids('UNSEEN')
 
-		for uid in unseen:
-			#msg = mail.get_message_by_uid(uid)
-			msg = mail.get_message_peek_by_uid(uid)
-
-			#msg_parsed = mail.parse_message(msg)
-
-
-
-	# mail.login('gmail.com', '')
-	# mail.check_mailbox_stats()
-	#
-	# mail.login('gmail.com', '')
-	# mail.check_mailbox_stats()
-	#
-	# mail.login('gmail.com', '')
-	# mail.check_mailbox_stats()
-	#
-	# mail.login('outlook.com', '')
-	# mail.check_mailbox_stats()
-	#
-
-	# mail.login('outlook.com', '')
-	# mail.check_mailbox_stats()
-	#
-	# mail.login('outlook.com', '')
-	# mail.check_mailbox_stats()
-
-
+						if len(unseen) > 0:
+							for uid in unseen:
+								#msg = mail.get_message_by_uid(uid)
+								id, msg = mail.get_message_peek_by_uid(uid)
+								if msg is not None and mail.show_messages:
+									mail.print_default_headers(msg, id, True)
+		time.sleep(20)
 
 
 	# CLEAN UP
